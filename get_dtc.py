@@ -13,6 +13,33 @@ eeprom.dump_config()
 eeprom.close()
 eeprom = None
 
+def generateCommand(service, pid):
+    packet = [
+        0x68,
+        0x6a,
+        0xf1,
+        service
+    ]
+    if pid is not None:
+        packet.append(pid)
+
+    checksum = 0
+    for data in packet:
+        checksum = checksum + data
+    packet.append(checksum % 256)
+
+    print ("generated packet : {}".format(packet))
+    return packet
+
+def getResponse(serial):
+    while True:
+    data = serial.read()
+    if len(data) > 0:
+        for byte in data:
+            print(hex(byte))
+    else:
+        return
+
 with pyftdi.serialext.serial_for_url(url, baudrate=10400, timeout=1) as ser:
     print(ser)
     print('Init 0x33 at 5 baud')
@@ -52,29 +79,8 @@ with pyftdi.serialext.serial_for_url(url, baudrate=10400, timeout=1) as ser:
     ecuID = bytes([syncByte[0] ^ 0xFF])
     print("got ECU ID : {}".format(ecuID))
 
-    # ser.rts = 1
-    ecuType = [
-        0x68,
-        0x6a,
-        0xf1,
-        0x01,
-        0x00,
-        0xc4
-    ]
-
-
-    while True:
-        data = ser.read()
-        if len(data) > 0:
-            print(hex(data[0]))
-        else:
-            break
+    ser.write(generateCommand(0x01, 0x00))
+    getResponse(ser)
     
-    getDTCs = [
-        0x68,
-        0x6a,
-        0xf1,
-        0x01,
-        0x00,
-        0xc4
-    ]
+    ser.write(generateCommand(0x03, None))
+    getResponse(ser)
